@@ -1,3 +1,5 @@
+ortools
+tabulate
 ortools (7.3.7083)
 pip (9.0.1)
 protobuf (3.9.1)

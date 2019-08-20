@@ -1,48 +1,68 @@
-# Maths Developer Exercise
+# Notes
 
-The aim of this exercise is to simulate real working conditions to provide context for a code/design review session. The follow up review session will focus on your reasons for model design and pseudo-code/code implementation. As such it isn’t necessary to build a complete implementation, however having some runnable code is recommended (preferably in Python).
+## Setup (on Ubuntu)
+- Setup a python virtual environment and clone this inside
+- Source the virtual environments and install dependencies
+```
+source <path/to/virtual/env>/bin/activate
+cd biarri-optimisation-task
+pip3 install -r requirements.txt
+```
 
-The suggested time to spend on this exercise is at least 2 hours.
+## Running script
+- Running should be as straightforward as 
+```
+python3 roster_optimisation.py
+```
+- The generated rosters will be printed to the console.
 
-# Instructions
+## Questions for Rosterer
+- Must any given shift only be covered by one person?
+- Do breaks need to be managed, or can employees decide between them?
+- Does the structure, i.e. 3 shifts per day of the same length (8.5hrs) 
+  with three slots for each ever change?
+- What is the qualification structure like? Are all of the supplied 
+  employees qualified for all the available shifts? Should some less 
+  qualified work with more qualified? Can an employees level be in the csv
+  along with their name, and the level requirements for a particular shift
+  be added to the corresponding shift in the shifts csv?
+- Any employee requests for leave, particular times of day to work, etc.?
+- Is this a consistent file format for both shift and employee details?
 
-For this challenge, we are looking for you to create models and an engine for a use by a simple rostering application.
-This application would be used for creating, editing, deleting and assigning shifts to a set of employees.
-For example this application could be used for a small business that works 24/7 to manage the shifts of it's employees to make sure everyone gets adequate days off and doesn't get shifts which are directly back-to-back.
+## Assumptions
+ - 3 People working at a given time (indicated by three shifts per timeslot)
+ - 3 Timeslots per day all with the same start and end times each day
+ - The spec says 10 hours rest overnight, this is taken to mean just 10 hours break 
+  between any two shifts, which translates to at least two shifts gap between any two
+  worked shifts.
 
-We're providing you with two mock data csv files which are typical of the type of data collected directly from clients:
+## Further improvement
+- In order to emphasise consecutive days off, and similar shift starting
+  times, some extra decision variables would be added. One as a count,
+  representing a metric for number of consecutive days (C) off and the other
+  as a measure of variance (V) for the starting times of each shift. An 
+  objective function would then aim to `Maximise C/V` or something to that
+  affect.
+  
+- A more object oriented approach, with the orm module better developed
+  would also make for some more logical code. Ideally linking the rows
+  that are built from the `.csv` files to their corresponding variables
+  in the optimisation. It isn't clear the kind of variation that would be
+  expected in these files. This would need to be investigated before
+  putting too much work into developing an interface for them.
+  
+- Reworking the script to accept arguments, etc. or to interface with
+  a web application would also be necessary to make this more practical.
+  
+- Some unit tests could also be added, as well as some verification of
+  the actual rosters that are generated. Something to explicitly check
+  that the applied rules are being adhered to as expected.
 
-Employees: The people who are being rostered
-Shifts: These are the bits of work assigned to employees.
+- A more dynamic approach to the number of timeslots and shifts per day
+  would also be better (not to mention a better naming convention, I
+  confused myself a few times with this one, but couldn't come up with
+  anything better). At the moment, they are assumed to be unchanging,
+  but even if this is the case, dynamically setting these for each day
+  would allow for even just unexpected roster changes that may need to
+  be accounted for in the future.
 
-The minimum set of rules that the algorithm needs to consider are:
-- Minimum of 10hr overnight rest
-- Maximum of 5 days working out of 7 any rolling 7 day window
-- Maximum of 5 days working in a row
-- Employees can only do shifts that they are qualified for
-
-Additional more difficult concepts which can be considered (not required):
-- Fairness of spread of shifts to employees
-- Strings of days off highly desirable over single days off
-- Maintaining similar start time (eg 3 morning shifts in a row)
-
-### Challenge
-
-The amount of time you spend on this exercise is up to you, and there are several activities you could consider depending on your strengths:
-
-- Develop some questions (for the rosterer) that support further requirements that you might need in order to more fully specify such an application.
-- Create ORM definitions for the application. You could also demonstrate the effectiveness of your schemas by writing a routine to read the sample data from the provided files into your models.
-- Describe and/or implement an algorithm which generates an optimised allocation of staff to shifts respecting the required rules provided above
-
-If any of the requirements are unclear feel free to send through questions for clarification or make assumptions - we are not trying to test you on your knowledge of rostering.
-
-What you deliver is up to you, some suggestions are:
-
-- Python 3
-- Git repository
-- Pseudo-code
-- Notes on assumptions or next steps you would take
-
-When you're ready to share your solution with us, email a link to your recruiter or Biarri contact.
-
-On completion, if there are additional things you think you could have done better/did not have enough time to complete, feel free to compile a quick list and bring it to the technical interview to help remind yourself during the discussion.

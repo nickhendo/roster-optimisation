@@ -5,9 +5,13 @@ import json
 
 class Shifts:
     def __init__(self, file_path):
+        self._file_path = file_path
+        self._rows = []
         self.load(file_path)
 
     def load(self, file_path):
+        """Load given csv into memory as 'rows' of dictionaries with keys corresponding to the column titles"""
+        # Would want these to be overwritten on loading a different csv
         self._file_path = file_path
         self._rows = []
         with open(self._file_path, encoding='utf-8-sig') as csvfile:
@@ -19,6 +23,7 @@ class Shifts:
                 self._rows.append(row)
 
     def get_days(self):
+        """ Return a sorted list of readable date strings """
         days = []
         for row in sorted(self._rows, key=lambda key: key['Date_Object']):
             if row["Date"] not in days:
@@ -29,13 +34,13 @@ class Shifts:
         return len(self.get_days())
 
     def get_timeslots(self):
+        """ Return a sorted list of strings representing the timeslots for any day """
         timeslots = []
         for row in self._rows:
             time = (row["Start"], row["End"], row["Start_Object"])
             if time not in timeslots:
                 timeslots.append(time)
         return [f"{time[0]} to {time[1]}" for time in sorted(timeslots, key=lambda x: x[2])]
-
 
     def __repr__(self):
         return json.dumps([{key: value for key, value in row.items() if 'object' not in key.lower()}
@@ -44,9 +49,13 @@ class Shifts:
 
 class Employees:
     def __init__(self, file_path):
+        self._file_path = file_path
+        self._rows = []
         self.load(file_path)
 
     def load(self, file_path):
+        """Load given csv into memory as 'rows' of dictionaries with keys corresponding to the column titles"""
+        # Would want these to be overwritten on loading a different csv
         self._file_path = file_path
         self._rows = []
         with open(self._file_path, encoding='utf-8-sig') as csvfile:
@@ -55,6 +64,7 @@ class Employees:
                 self._rows.append(row)
 
     def get_name(self, index):
+        """Return the name of the employee at the given index, after sorted alphabetically"""
         name = sorted(self._rows, key=lambda key: key['Last Name'])[index]
         return f'{name["First Name"]} {name["Last Name"]}'
 
