@@ -5,9 +5,11 @@ from datetime import datetime
 import json
 from tabulate import tabulate
 
+import orm
+
 
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
-    def __init__(self, decision_var, num_employees, num_days, num_shifts, num_timeslots, num_sols):
+    def __init__(self, decision_var, num_employees, num_days, num_shifts, num_timeslots, num_sols, shifts, employees):
         cp_model.CpSolverSolutionCallback.__init__(self)
         print(num_employees, num_days, num_timeslots, num_shifts, num_sols)
         self._decision_var = decision_var
@@ -15,63 +17,45 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
         self._num_days = num_days
         self._num_timeslots = num_timeslots
         self._num_shifts = num_shifts
-        self._solutions = range(num_sols + 1)
+        self._solutions = range(num_sols-1)
         self._solution_count = 0
+        self._shifts = shifts
+        self._employees = employees
 
     def on_solution_callback(self):
-        self._solution_count += 1
-        if self._solution_count in self._solutions:
-            print(f'Solution {self._solution_count}')
-            roster = []
-            for t in range(self._num_timeslots):
-                row = [t]
-                for d in range(self._num_days):
-                    day = []
-                    for s in range(self._num_shifts):
-                        for e in range(self._num_employees):
-                            if self.Value(self._decision_var[(e, d, t, s)]):
-                                day.append((s, e))
-                    row.append(day)
-                roster.append(row)
-
-            # print('here')
-            roster_headers = list(range(self._num_days))
-            roster_headers.insert(0, 'Shift Time')
-
-            print(tabulate(roster, roster_headers, tablefmt='grid'))
-            print()
-
-        else:
+        if self._solution_count not in self._solutions:
             self.StopSearch()
+        print(f'Solution {self._solution_count}')
+        roster = []
+        for t in range(self._num_timeslots):
+            row = [self._shifts.get_timeslots()[t]]
+            for d in range(self._num_days):
+                day = []
+                for s in range(self._num_shifts):
+                    for e in range(self._num_employees):
+                        if self.Value(self._decision_var[(e, d, t, s)]):
+                            day.append(self._employees.get_name(e))
+                row.append(day)
+            roster.append(row)
+
+        # print('here')
+        roster_headers = list(self._shifts.get_days())
+        roster_headers.insert(0, 'Shift Time')
+
+        print(tabulate(roster, roster_headers, tablefmt='grid'))
+        print()
+        self._solution_count += 1
 
     def solution_count(self):
         return self._solution_count
 
 
-def import_data(shifts_file='files/shifts.csv', employees_file='files/employees.csv'):
-    shifts = []
-    employees = []
-
-    with open(shifts_file, encoding='utf-8-sig') as csvfile:
-        employee_shifts = csv.DictReader(csvfile, delimiter=',')
-        for shift in employee_shifts:
-            shift["Date"] = datetime.strptime(shift["Date"], '%d/%m/%Y').date()
-            shift["Start"] = datetime.strptime(shift["Start"], '%I:%M:%S %p').time()
-            shift["End"] = datetime.strptime(shift["End"], '%I:%M:%S %p').time()
-            shifts.append(shift)
-
-    with open(employees_file, encoding='utf-8-sig') as csvfile:
-        employee_names = csv.DictReader(csvfile, delimiter=',')
-        for employee in employee_names:
-            employees.append(employee)
-
-    # print(shifts)
-    # print(json.dumps(employees, indent=4))
-    return shifts, employees
-
 def main():
-    num_days = 7
-    num_employees = 13
+    shift_data = orm.Shifts('files/shifts.csv')
+    employee_data = orm.Employees('files/employees.csv')
+
+    num_days = shift_data.num_days()
+    num_employees = employee_data.num_employees()
     num_timeslots = 3
     num_shifts = 3  # Number of shifts per timeslot, i.e. 3 people can work at the same time.
 
@@ -119,6 +103,16 @@ def main():
             model.Add(sum(decision_var[e, d, 1, s] for s in shifts) + sum(decision_var[e, d+1, 0, s] for s in shifts) <= 1)
             model.Add(sum(decision_var[e, d, 2, s] for s in shifts) + sum(decision_var[e, d+1, 1, s] for s in shifts) + sum(decision_var[e, d+1, 0, s] for s in shifts) <= 1)
 
+    # No more than 5 working days in a row
+    for d in days[:-5]:
+        for e in employees:
+            model.Add(sum(sum(decision_var[e, d + x, t, s] for t in timeslots for s in shifts) for x in range(5)) <= 5)
+
+    # No more than 5 days working in any 7 day rolling window
+    for d in days[:-7]:
+        for e in employees:
+            model.Add(sum(sum(decision_var[e, d + x, t, s] for t in timeslots for s in shifts) for x in range(7)) <= 5)
+
     # Evenly spread shifts across employees.
     # Naturally, all employees want as many shifts as they can,
     # so the min number of shifts for each, is the floor of the TOTAL shifts divided by the employees.
@@ -132,31 +126,19 @@ def main():
         model.Add(num_working_shifts <= max_shifts)
 
     # Objective function
-    # model.Minimize(sum(s[(d, e, t)] for d in days for e in employees for t in shifts))
+    # model.Minimize(sum(decision_var[(e, d, t, s)] for d in days for e in employees for t in shifts))
     solver = cp_model.CpSolver()
     # solver.parameters.linearization_level = 0
-    solution_printer = SolutionPrinter(decision_var, num_employees, num_days, num_shifts, num_timeslots, 2)
+    solution_printer = SolutionPrinter(decision_var, num_employees, num_days, num_shifts, num_timeslots, 2, shift_data, employee_data)
     solver.SearchForAllSolutions(model, solution_printer)
-    #
+    # solver.SolveWithSolutionCallback(model, solution_printer)
+
     print()
     print('Statistics')
     print('  - conflicts       : %i' % solver.NumConflicts())
     print('  - branches        : %i' % solver.NumBranches())
     print('  - wall time       : %f s' % solver.WallTime())
     print('  - solutions found : %i' % solution_printer.solution_count())
-    # week_grid = []
-    # for t in shifts:
-    #     times = []
-    #     for d in days:
-    #         workers = []
-    #         for e in employees:
-    #             if solver.Value(s[(d, e, t)]) == 1:
-    #                 workers.append(e)
-    #         times.append(workers)
-    #     week_grid.append(times)
-    # headers = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    # print(tabulate(week_grid, headers=headers, tablefmt='grid'))
-    # print(f'Objective value: {solver.ObjectiveValue()}\nWall time: {solver.WallTime()}')
 
 
 if __name__ == '__main__':
