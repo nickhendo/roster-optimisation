@@ -66,11 +66,4 @@ class Employees:
 
 
 if __name__ == '__main__':
-    shifts = Shifts('files/shifts.csv')
-    # print(shifts)
-    print(shifts.get_days())
-    print(shifts.get_timeslots())
-
-    employees = Employees('files/employees.csv')
-    print(employees.get_name(2))
-    # print(employees)
+    pass

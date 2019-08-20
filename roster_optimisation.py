@@ -1,8 +1,5 @@
 from __future__ import print_function
 from ortools.sat.python import cp_model
-import csv
-from datetime import datetime
-import json
 from tabulate import tabulate
 
 import orm
