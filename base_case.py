@@ -7,15 +7,15 @@ from tabulate import tabulate
 
 
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
-    def __init__(self, X, num_employees, num_days, num_shifts, num_timeslots, sols):
+    def __init__(self, decision_var, num_employees, num_days, num_shifts, num_timeslots, num_sols):
         cp_model.CpSolverSolutionCallback.__init__(self)
-        print(num_employees, num_days, num_shifts, sols)
-        self._X = X
+        print(num_employees, num_days, num_timeslots, num_shifts, num_sols)
+        self._decision_var = decision_var
         self._num_employees = num_employees
         self._num_days = num_days
         self._num_timeslots = num_timeslots
         self._num_shifts = num_shifts
-        self._solutions = set(sols)
+        self._solutions = range(num_sols + 1)
         self._solution_count = 0
 
     def on_solution_callback(self):
@@ -29,12 +29,13 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
                     day = []
                     for s in range(self._num_shifts):
                         for e in range(self._num_employees):
-                            if self.Value(self._X(e, d, s, t)):
+                            if self.Value(self._decision_var[(e, d, t, s)]):
                                 day.append((s, e))
+                    row.append(day)
                 roster.append(row)
 
-
-            roster_headers = list(sorted(set(datetime.strftime(shift["Date"], '%d/%m/%Y') for shift in self._shift_data)))
+            # print('here')
+            roster_headers = list(range(self._num_days))
             roster_headers.insert(0, 'Shift Time')
 
             print(tabulate(roster, roster_headers, tablefmt='grid'))
@@ -70,7 +71,7 @@ def import_data(shifts_file='files/shifts.csv', employees_file='files/employees.
 
 def main():
     num_days = 7
-    num_employees = 14
+    num_employees = 13
     num_timeslots = 3
     num_shifts = 3  # Number of shifts per timeslot, i.e. 3 people can work at the same time.
 
@@ -80,7 +81,7 @@ def main():
     shifts = range(num_shifts)
 
     model = cp_model.CpModel()
-    X = {}
+    decision_var = {}
 
     ###############################
     # Defining decision variables #
@@ -89,7 +90,7 @@ def main():
         for d in days:
             for t in timeslots:
                 for s in shifts:
-                    X[(e, d, t, s)] = model.NewBoolVar(f'Employee: {e}, Day: {d}, Timeslot: {t}, Shift: {s}')
+                    decision_var[(e, d, t, s)] = model.NewBoolVar(f'Employee: {e}, Day: {d}, Timeslot: {t}, Shift: {s}')
 
     ################################
     # Constraints                  #
@@ -98,42 +99,43 @@ def main():
     # Ensuring that all hours are covered
     for d in days:
         for t in timeslots:
-            model.Add(sum(X[(e, d, t, s)] for e in employees for s in shifts) == 1)
+            for s in shifts:
+                model.Add(sum(decision_var[(e, d, t, s)] for e in employees) == 1)
 
     # No employee works more than 5 days a week.
     # This currently just works off the given list being a week long.
-    # This does NOT constrain to a rolling 7 day window.
+    # # This does NOT constrain to a rolling 7 day window.
     for e in employees:
-        model.Add(sum(X[(e, d, s, t)] for d in days for s in shifts for t in timeslots) <= 5)
+        model.Add(sum(decision_var[(e, d, t, s)] for d in days for t in timeslots for s in shifts ) <= 5)
 
     # Employees work 1 shift per day at most
     for e in employees:
         for d in days:
-            model.Add(sum(X[(e, d, s, t)] for s in shifts for t in timeslots) <= 1)
+            model.Add(sum(decision_var[(e, d, t, s)] for t in timeslots for s in shifts) <= 1)
 
     # 10 hours break between shifts
-    for d in days[:-1]:  # Don't worry about last day in schedule
+    for d in days[:-1]:
         for e in employees:
-            for s in shifts[1:]:
-                model.Add(sum(X[e, d, s, t] for t in timeslots) > sum(X[e, d+1, s-1, t] for t in timeslots))
+            model.Add(sum(decision_var[e, d, 1, s] for s in shifts) + sum(decision_var[e, d+1, 0, s] for s in shifts) <= 1)
+            model.Add(sum(decision_var[e, d, 2, s] for s in shifts) + sum(decision_var[e, d+1, 1, s] for s in shifts) + sum(decision_var[e, d+1, 0, s] for s in shifts) <= 1)
 
     # Evenly spread shifts across employees.
     # Naturally, all employees want as many shifts as they can,
     # so the min number of shifts for each, is the floor of the TOTAL shifts divided by the employees.
     # Taking the floor means, that there will be at most a variation of 1 shift between any two
     # employees, meaning the max number is just the min + 1
-    min_shifts = (num_shifts* num_timeslots * num_days) // num_employees
+    min_shifts = (num_shifts * num_timeslots * num_days) // num_employees
     max_shifts = min_shifts + 1
     for e in employees:
-        num_shifts = sum(X[(e, d, s, t)] for d in days for s in shifts for t in shifts)
-        model.Add(min_shifts <= num_shifts)
-        model.Add(num_shifts <= max_shifts)
+        num_working_shifts = sum(decision_var[(e, d, t, s)] for d in days for s in shifts for t in shifts)
+        model.Add(min_shifts <= num_working_shifts)
+        model.Add(num_working_shifts <= max_shifts)
 
     # Objective function
     # model.Minimize(sum(s[(d, e, t)] for d in days for e in employees for t in shifts))
     solver = cp_model.CpSolver()
     # solver.parameters.linearization_level = 0
-    solution_printer = SolutionPrinter(X, len(employees), num_days, num_shifts, num_timeslots, range(2))
+    solution_printer = SolutionPrinter(decision_var, num_employees, num_days, num_shifts, num_timeslots, 2)
     solver.SearchForAllSolutions(model, solution_printer)
     #
     print()
