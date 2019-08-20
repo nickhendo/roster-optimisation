@@ -20,6 +20,7 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
         self._shift_data = shift_data
 
     def on_solution_callback(self):
+        self._solution_count += 1
         if self._solution_count in self._solutions:
             print(f'Solution {self._solution_count}')
             roster_headers = list(sorted(set(datetime.strftime(shift["Date"], '%d/%m/%Y') for shift in self._shift_data)))
@@ -41,8 +42,8 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
             print(tabulate(roster, roster_headers, tablefmt='grid'))
             print()
 
-
-        self._solution_count += 1
+        else:
+            self.StopSearch()
 
     def solution_count(self):
         return self._solution_count
