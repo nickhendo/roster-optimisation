@@ -1,8 +1,6 @@
-ortools
-tabulate
-ortools (7.3.7083)
-pip (9.0.1)
-protobuf (3.9.1)
-setuptools (39.0.1)
-six (1.12.0)
-tabulate (0.8.3)
+ortools==7.3.7083
+pip==9.0.1
+protobuf==3.9.1
+setuptools==39.0.1
+six==1.12.0
+tabulate==0.8.3
