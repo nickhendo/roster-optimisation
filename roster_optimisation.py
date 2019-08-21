@@ -125,7 +125,7 @@ def main():
         model.Add(num_working_shifts <= max_shifts)
 
     solver = cp_model.CpSolver()
-    solution_printer = SolutionPrinter(decision_var, num_employees, num_timeslots, 2, shift_data, employee_data)
+    solution_printer = SolutionPrinter(decision_var, num_shifts, num_timeslots, 2, shift_data, employee_data)
     # Since an objective function hasn't been implemented, ideally to minimize start time variance or consecutive days
     # off, there is no 'best' solution. As a result, all solutions are found, stopping after the specified number.
     solver.SearchForAllSolutions(model, solution_printer)
