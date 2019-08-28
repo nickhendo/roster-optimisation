@@ -37,6 +37,10 @@ python3 roster_optimisation.py
   worked shifts.
 
 ## Further improvement
+- If there is to be a rolling usage of this project, it goes without saying, that
+  unit testing is a must. A set of test cases ensuring that all of the requirements
+  are satisfied on a generated roster to begin with. 
+
 - In order to emphasise consecutive days off, and similar shift starting
   times, some extra decision variables would be added. One as a count,
   representing a metric for number of consecutive days (C) off and the other
