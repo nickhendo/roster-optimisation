@@ -96,16 +96,19 @@ def main():
     # 10 hours break between shifts. Should ideally be in a loop to allow for a dynamic number of shifts per day
     for d in days[:-1]:
         for e in employees:
-            model.Add(sum(decision_var[e, d, 1, s] for s in shifts) +
-                      sum(decision_var[e, d+1, 0, s] for s in shifts) <= 1)
-            model.Add(sum(decision_var[e, d, 2, s] for s in shifts) +
-                      sum(decision_var[e, d+1, 1, s] for s in shifts) +
-                      sum(decision_var[e, d+1, 0, s] for s in shifts) <= 1)
+            morning_shift = 0
+            afternoon_shift = 1
+            night_shift = 2
+            model.Add(sum(decision_var[e, d, afternoon_shift, s] for s in shifts) +
+                      sum(decision_var[e, d+1, morning_shift, s] for s in shifts) <= 1)
+            model.Add(sum(decision_var[e, d, night_shift, s] for s in shifts) +
+                      sum(decision_var[e, d+1, afternoon_shift, s] for s in shifts) +
+                      sum(decision_var[e, d+1, morning_shift, s] for s in shifts) <= 1)
 
     # No more than 5 working days in a row
-    for d in days[:-5]:
+    for d in days[:-6]:
         for e in employees:
-            model.Add(sum(sum(decision_var[e, d + x, t, s] for t in timeslots for s in shifts) for x in range(5)) <= 5)
+            model.Add(sum(sum(decision_var[e, d + x, t, s] for t in timeslots for s in shifts) for x in range(6)) <= 5)
 
     # No more than 5 days working in any 7 day rolling window
     for d in days[:-7]:
